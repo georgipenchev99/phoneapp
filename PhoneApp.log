@@ -1,0 +1,3 @@
+﻿  PhoneAppDlg.cpp
+C:\Users\user\source\repos\PhoneApp\PhoneAppDlg.cpp(182,23): warning C4018: '<': signed/unsigned mismatch
+  PhoneApp.vcxproj -> C:\Users\user\source\repos\PhoneApp\Debug\PhoneApp.exe
