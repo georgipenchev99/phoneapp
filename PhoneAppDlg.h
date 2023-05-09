@@ -13,6 +13,7 @@ public:
 	CPhoneAppDlg(CWnd* pParent = nullptr);	// standard constructor
 	void ResetListControls();
 	void FetchData();
+	void CloseConn();
 	CString GetFirstWord(CString s);
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
