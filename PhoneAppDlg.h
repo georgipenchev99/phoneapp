@@ -54,4 +54,5 @@ public:
 	CString m_edit_ln;
 	CString m_edit_phone;
 	afx_msg void OnBnClickedCancel();
+	CString m_tb_id;
 };

@@ -21,6 +21,8 @@
 #define IDC_PARTIAL_MATCH               1010
 #define IDC_EXACT_MATCH                 1011
 #define IDC_EDIT_ID                     1012
+#define IDC_FN2                         1012
+#define IDC_ID                          1012
 #define IDC_EDIT_FN                     1013
 #define IDC_EDIT_LN                     1014
 #define IDC_EDIT_PHONE                  1015

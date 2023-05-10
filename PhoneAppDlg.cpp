@@ -10,6 +10,9 @@
 #include "odbcinst.h"
 #include "afxdb.h"
 #include "CEditEmployeeDlg.h"
+#include "Employee.h"
+#include <vector>
+
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -25,6 +28,8 @@ bool conn_success = database.Open(NULL,false,false,CONN_STRING);
 //global var for selected item in listbox
 static int SELECTED = -1;
 
+//global array of employees
+std::vector<Employee> employees;
 
 class CAboutDlg : public CDialogEx
 {
@@ -68,6 +73,7 @@ CPhoneAppDlg::CPhoneAppDlg(CWnd* pParent /*=nullptr*/)
 	, m_tb_phone(_T(""))
 	, m_list_value(_T(""))
 	, m_search(_T(""))
+	, m_tb_id(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -82,6 +88,7 @@ void CPhoneAppDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_LBString(pDX, IDC_LIST_NAMES, m_list_value);
 	DDX_Control(pDX, IDC_LIST_NAMES, m_list_names);
 	DDX_Text(pDX, IDC_SEARCH, m_search);
+	DDX_Text(pDX, IDC_ID, m_tb_id);
 }
 
 BEGIN_MESSAGE_MAP(CPhoneAppDlg, CDialogEx)
@@ -252,7 +259,7 @@ void CPhoneAppDlg::FetchData() {
 			CRecordset recset(&database);
 
 		// Build the SQL statement
-		SqlString = "SELECT ID, FirstName, LastName, Telephone FROM Employees";
+		SqlString = "SELECT id, FirstName, LastName FROM Employees";
 
 		// Execute the query
 		recset.Open(CRecordset::forwardOnly,SqlString,CRecordset::readOnly);
@@ -263,16 +270,16 @@ void CPhoneAppDlg::FetchData() {
 		// Loop through each record
 		while (!recset.IsEOF()) {
 			// Copy each column into a variable
-			recset.GetFieldValue(L"ID",strID);
+			recset.GetFieldValue(L"id",strID);
 			recset.GetFieldValue(L"FirstName",strName);
 			recset.GetFieldValue(L"LastName", strLastName);
-			recset.GetFieldValue(L"Telephone", strPhone);
+			//recset.GetFieldValue(L"phone", strPhone);
 
 			// Insert values into the list control
-			iRec = m_list_control.InsertItem(0,strID,0);
+			/*iRec = m_list_control.InsertItem(0,strID,0);
 			m_list_control.SetItemText(0,1,strName);
 			m_list_control.SetItemText(0, 2, strLastName);
-			m_list_control.SetItemText(0, 3, strPhone);
+			m_list_control.SetItemText(0, 3, strPhone);*/
 
 			//old
 			//int index = m_list_names.AddString(strID + " " + strName + " " + strLastName);
@@ -313,24 +320,25 @@ void CPhoneAppDlg::OnBnClickedInsert()
 	}
 	else {
 		UpdateData();
-		//CDatabase database;
+
 		CString SqlString;
 		CString strID, strFirstName, strLastName, strPhone;
 
 		int iRec = 0;
 
 		TRY{
-			//database.Open(NULL,false,false,CONN_STRING);
 
-			SqlString.Format(L"INSERT INTO employees (FirstName,LastName,telephone) VALUES ('%s', '%s','%s')",m_tb_fn,m_tb_ln,m_tb_phone);
+			SqlString.Format(L"INSERT INTO employees (id,FirstName,LastName) VALUES ('%s', '%s','%s')",m_tb_id,m_tb_fn,m_tb_ln);
+			database.ExecuteSQL(SqlString);
+			SqlString.Format(L"INSERT INTO telephones (employee_id,phone) VALUES ('%s', '%s')", m_tb_id, m_tb_phone);
 			database.ExecuteSQL(SqlString);
 
-			//database.Close();
 		}CATCH(CDBException, e) {
 			AfxMessageBox(L"Database error: " + e->m_strError);
 		}
 		END_CATCH;
 
+		m_tb_id = "";
 		m_tb_fn = "";
 		m_tb_ln = "";
 		m_tb_phone = "";
@@ -368,32 +376,38 @@ void CPhoneAppDlg::OnBnClickedPartialMatch()
 		int iRec = 0;
 
 		TRY{
-			//database.Open(NULL,false,false,CONN_STRING);
 
 			CRecordset recset(&database);
 
-			SqlString = L"SELECT ID, FirstName, LastName, Telephone FROM Employees WHERE FirstName like '%" + m_search + L"%' or LastName like '%" + m_search + L"%' or Telephone like '%" + m_search + L"%'";
+			SqlString = L"SELECT e.ID, FirstName, LastName, phone FROM Employees e left join telephones t on e.id=t.employee_id WHERE FirstName like '%" + m_search + L"%' or LastName like '%" + m_search + L"%' or phone like '%" + m_search + L"%'";
 
 			recset.Open(CRecordset::forwardOnly,SqlString,CRecordset::readOnly);
 
 			ResetListControls();
-
-			while (!recset.IsEOF()) {
-
-				recset.GetFieldValue(L"ID",strID);
-				recset.GetFieldValue(L"FirstName",strName);
-				recset.GetFieldValue(L"LastName", strLastName);
-				recset.GetFieldValue(L"Telephone", strPhone);
-
-				iRec = m_list_control.InsertItem(0,strID,0);
-				m_list_control.SetItemText(0,1,strName);
-				m_list_control.SetItemText(0, 2, strLastName);
-				m_list_control.SetItemText(0, 3, strPhone);
-
-				m_list_names.AddString(strID + " " + strName + " " + strLastName);
-				recset.MoveNext();
+			if (recset.IsEOF())
+			{
+				MessageBox(L"No data found!");
 			}
-			//database.Close();
+			else {
+				while (!recset.IsEOF()) {
+
+					recset.GetFieldValue(L"ID", strID);
+					recset.GetFieldValue(L"FirstName", strName);
+					recset.GetFieldValue(L"LastName", strLastName);
+					recset.GetFieldValue(L"phone", strPhone);
+
+					iRec = m_list_control.InsertItem(0, strID, 0);
+					m_list_control.SetItemText(0, 1, strName);
+					m_list_control.SetItemText(0, 2, strLastName);
+					m_list_control.SetItemText(0, 3, strPhone);
+
+					int index = m_list_names.AddString(strName + " " + strLastName);
+					DWORD d = _wtol(strID);
+
+					m_list_names.SetItemData(index, d);
+					recset.MoveNext();
+				}
+			}
 		}CATCH(CDBException, e) {
 			AfxMessageBox(L"Database error: " + e->m_strError);
 		}
@@ -411,82 +425,84 @@ void CPhoneAppDlg::OnBnClickedExactMatch()
 	}
 	else {
 		UpdateData();
-		//CDatabase database;
 		CString SqlString;
 		CString strID, strName, strLastName, strPhone;
 
 		int iRec = 0;
 
 		TRY{
-			//database.Open(NULL,false,false,CONN_STRING);
 
 			CRecordset recset(&database);
 
-			SqlString.Format(L"SELECT ID, FirstName, LastName, Telephone FROM Employees WHERE FirstName like '%s' or LastName like '%s' or Telephone like '%s'",m_search, m_search, m_search);
+			SqlString.Format(L"SELECT e.ID, FirstName, LastName, phone FROM Employees e left join telephones t on e.id= t.employee_id WHERE FirstName like '%s' or LastName like '%s' or phone like '%s'",m_search, m_search, m_search);
 
 			recset.Open(CRecordset::forwardOnly,SqlString,CRecordset::readOnly);
 
 			ResetListControls();
-
-			while (!recset.IsEOF()) {
-
-				recset.GetFieldValue(L"ID",strID);
-				recset.GetFieldValue(L"FirstName",strName);
-				recset.GetFieldValue(L"LastName", strLastName);
-				recset.GetFieldValue(L"Telephone", strPhone);
-
-				iRec = m_list_control.InsertItem(0,strID,0);
-				m_list_control.SetItemText(0,1,strName);
-				m_list_control.SetItemText(0, 2, strLastName);
-				m_list_control.SetItemText(0, 3, strPhone);
-
-				m_list_names.AddString(strID + " " + strName + " " + strLastName);
-				recset.MoveNext();
+			if (recset.IsEOF())
+			{
+				MessageBox(L"No data found!");
 			}
-			//database.Close();
+			else {
+				while (!recset.IsEOF()) {
+
+					recset.GetFieldValue(L"ID", strID);
+					recset.GetFieldValue(L"FirstName", strName);
+					recset.GetFieldValue(L"LastName", strLastName);
+					recset.GetFieldValue(L"phone", strPhone);
+
+					iRec = m_list_control.InsertItem(0, strID, 0);
+					m_list_control.SetItemText(0, 1, strName);
+					m_list_control.SetItemText(0, 2, strLastName);
+					m_list_control.SetItemText(0, 3, strPhone);
+
+					int index = m_list_names.AddString(strName + " " + strLastName);
+					DWORD d = _wtol(strID);
+
+					m_list_names.SetItemData(index, d);
+					recset.MoveNext();
+				}
+			}
 		}CATCH(CDBException, e) {
 			AfxMessageBox(L"Database error: " + e->m_strError);
 		}
 		END_CATCH;
 	}
-	
 }
 
 
 void CPhoneAppDlg::OnLbnSelchangeListNames()
 {
 	UpdateData();
+	CString SqlString;
+	CString strID, strName, strLastName, strPhone;
 
 	SELECTED = m_list_names.GetCurSel();
 	if (SELECTED!=-1)
 	{
-		//for debugging
 		DWORD d = m_list_names.GetItemData(SELECTED);
-	}
-	//with listbox pointer but it's not necessary
-	/*CListBox* pList;
-	if ((pList = (CListBox*)GetDlgItem(IDC_LIST_NAMES)) != NULL)
-	{
-		int nCurSel = pList->GetCurSel();
-		if (nCurSel != -1)
-		{
-			DWORD d = pList->GetItemData(nCurSel);
-			long l = 1;
+		m_list_control.DeleteAllItems();
+
+		CRecordset recset(&database);
+
+		SqlString.Format(L"SELECT e.ID, FirstName, LastName, phone FROM Employees e left join telephones t on e.id= t.employee_id WHERE e.id like '%d'", d);
+
+		recset.Open(CRecordset::forwardOnly, SqlString, CRecordset::readOnly);
+		while (!recset.IsEOF()) {
+
+			recset.GetFieldValue(L"ID", strID);
+			recset.GetFieldValue(L"FirstName", strName);
+			recset.GetFieldValue(L"LastName", strLastName);
+			recset.GetFieldValue(L"phone", strPhone);
+
+			m_list_control.InsertItem(0, strID, 0);
+			m_list_control.SetItemText(0, 1, strName);
+			m_list_control.SetItemText(0, 2, strLastName);
+			m_list_control.SetItemText(0, 3, strPhone);
+
+			recset.MoveNext();
 		}
-	}*/
-
-	//testing tokenize
-	//CString a = L"aaa===bbb=ccc=dddd";
-	//int cur = 0;
-	//CString s = a.Tokenize(L"=", cur);
-	//while (!s.IsEmpty())
-	//{
-	//	
-	//	OutputDebugString(s + "\n");
-
-	//	
-	//	s = a.Tokenize(_T("="), cur);
-	//}
+	}
 
 	UpdateData(FALSE);
 }
@@ -502,16 +518,13 @@ void CPhoneAppDlg::OnBnClickedDelete()
 		if (SELECTED!= -1)
 		{
 			if (MessageBoxA(NULL, "Do you want to delete this item?", "Warning", MB_YESNO) == IDYES) {
-				//CDatabase database;
 				CString SqlString;
 
 				TRY{
-					//database.Open(NULL,false,false,CONN_STRING);
-
-					SqlString.Format(L"DELETE FROM Employees WHERE id like %d",m_list_names.GetItemData(SELECTED));
-
+					SqlString.Format(L"DELETE FROM telephones WHERE employee_id like %d",m_list_names.GetItemData(SELECTED));
 					database.ExecuteSQL(SqlString);
-					//database.Close();
+					SqlString.Format(L"DELETE FROM Employees WHERE id like %d",m_list_names.GetItemData(SELECTED));
+					database.ExecuteSQL(SqlString);
 				}CATCH(CDBException, e) {
 					AfxMessageBox(L"Database error: " + e->m_strError);
 				}
@@ -539,25 +552,22 @@ void CPhoneAppDlg::OnBnClickedUpdate()
 	else {
 		if (SELECTED !=-1) {
 			UpdateData();
-			//CDatabase database;
 			CString SqlString;
 			CString strID, strName, strLastName, strPhone;
 
 			int iRec = 0;
 
 			TRY{
-				//database.Open(NULL,false,false,CONN_STRING);
-
 				CRecordset recset(&database);
 
-				SqlString.Format(L"SELECT ID, FirstName, LastName, Telephone FROM Employees WHERE id like %d",m_list_names.GetItemData(SELECTED));
+				SqlString.Format(L"SELECT e.ID, FirstName, LastName, phone FROM Employees e join telephones t on e.id=t.employee_id WHERE e.id like %d",m_list_names.GetItemData(SELECTED));
 				MessageBox(SqlString);
 				recset.Open(CRecordset::forwardOnly,SqlString,CRecordset::readOnly);
 
 				recset.GetFieldValue(L"ID",strID);
 				recset.GetFieldValue(L"FirstName",strName);
 				recset.GetFieldValue(L"LastName", strLastName);
-				recset.GetFieldValue(L"Telephone", strPhone);
+				recset.GetFieldValue(L"phone", strPhone);
 
 				CEditEmployeeDlg dlg(strID, strName,strLastName,strPhone);
 				if (dlg.DoModal() == IDOK) {
@@ -567,7 +577,7 @@ void CPhoneAppDlg::OnBnClickedUpdate()
 					m_edit_phone = dlg.m_edit_phone;
 					m_edit_id = dlg.m_edit_id;
 
-					SqlString.Format(L"UPDATE Employees set Firstname='%s', LastName = '%s', Telephone = '%s' WHERE id = %s",m_edit_fn,m_edit_ln,m_edit_phone,m_edit_id);
+					SqlString.Format(L"UPDATE Employees set Firstname='%s', LastName = '%s', Telephone = '%s' WHERE Employees.id = %s",m_edit_fn,m_edit_ln,m_edit_phone,m_edit_id);
 					database.ExecuteSQL(SqlString);
 					MessageBox(L"Data Updated Successfully!");
 					SELECTED = -1;
@@ -575,7 +585,7 @@ void CPhoneAppDlg::OnBnClickedUpdate()
 				}
 				ResetListControls();
 				FetchData();
-				//database.Close();
+
 			}CATCH(CDBException, e) {
 				AfxMessageBox(L"Database error: " + e->m_strError);
 			}
