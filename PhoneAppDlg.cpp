@@ -15,10 +15,16 @@
 #define new DEBUG_NEW
 #endif
 //Uid=User-PC\\user;Pwd=;
+//define connection string with windows authentication
 #define CONN_STRING L"Driver={ODBC Driver 17 for SQL Server};Server={(localdb)\\MSSQLLocalDB}; Database=work; Trusted_Connection=yes;"
+//global database var with open connection
 CDatabase database;
+//if this is false, there will be no fetching data
 bool conn_success = database.Open(NULL,false,false,CONN_STRING);
-// CAboutDlg dialog used for App About
+
+//global var for selected item in listbox
+static int SELECTED = -1;
+
 
 class CAboutDlg : public CDialogEx
 {
@@ -234,8 +240,9 @@ void CPhoneAppDlg::FetchData() {
 	{
 		//CDatabase database;
 		CString SqlString;
+		
 		CString strID, strName, strLastName, strPhone;
-
+		
 		int iRec = 0;
 
 		TRY{
@@ -267,8 +274,23 @@ void CPhoneAppDlg::FetchData() {
 			m_list_control.SetItemText(0, 2, strLastName);
 			m_list_control.SetItemText(0, 3, strPhone);
 
-			m_list_names.AddString(strID + " " + strName + " " + strLastName);
+			//old
+			//int index = m_list_names.AddString(strID + " " + strName + " " + strLastName);
+			int index = m_list_names.AddString(strName + " " + strLastName);
+			DWORD d = _wtol(strID);
+			
+			m_list_names.SetItemData(index, d);
 
+			/*CListBox* pListBox = (CListBox*)GetDlgItem(IDC_LIST_NAMES);
+			CString toAdd = strID + " " + strName + " " + strLastName;
+			int i = pListBox->AddString(toAdd);
+			pListBox->SetItemData(i, toAdd);
+			
+			DWORD_PTR d = pListBox->GetItemData(i);
+			*/
+			/*CString s;
+			s.Format(L"%d  %d",index, d);
+			MessageBox(s);*/
 			// goto next record
 			recset.MoveNext();
 		 }
@@ -291,19 +313,19 @@ void CPhoneAppDlg::OnBnClickedInsert()
 	}
 	else {
 		UpdateData();
-		CDatabase database;
+		//CDatabase database;
 		CString SqlString;
 		CString strID, strFirstName, strLastName, strPhone;
 
 		int iRec = 0;
 
 		TRY{
-			database.Open(NULL,false,false,CONN_STRING);
+			//database.Open(NULL,false,false,CONN_STRING);
 
 			SqlString.Format(L"INSERT INTO employees (FirstName,LastName,telephone) VALUES ('%s', '%s','%s')",m_tb_fn,m_tb_ln,m_tb_phone);
 			database.ExecuteSQL(SqlString);
 
-			database.Close();
+			//database.Close();
 		}CATCH(CDBException, e) {
 			AfxMessageBox(L"Database error: " + e->m_strError);
 		}
@@ -435,8 +457,36 @@ void CPhoneAppDlg::OnLbnSelchangeListNames()
 {
 	UpdateData();
 
-	/*CString s = GetFirstWord(m_list_value);
-	MessageBox(s);*/
+	SELECTED = m_list_names.GetCurSel();
+	if (SELECTED!=-1)
+	{
+		//for debugging
+		DWORD d = m_list_names.GetItemData(SELECTED);
+	}
+	//with listbox pointer but it's not necessary
+	/*CListBox* pList;
+	if ((pList = (CListBox*)GetDlgItem(IDC_LIST_NAMES)) != NULL)
+	{
+		int nCurSel = pList->GetCurSel();
+		if (nCurSel != -1)
+		{
+			DWORD d = pList->GetItemData(nCurSel);
+			long l = 1;
+		}
+	}*/
+
+	//testing tokenize
+	//CString a = L"aaa===bbb=ccc=dddd";
+	//int cur = 0;
+	//CString s = a.Tokenize(L"=", cur);
+	//while (!s.IsEmpty())
+	//{
+	//	
+	//	OutputDebugString(s + "\n");
+
+	//	
+	//	s = a.Tokenize(_T("="), cur);
+	//}
 
 	UpdateData(FALSE);
 }
@@ -449,7 +499,7 @@ void CPhoneAppDlg::OnBnClickedDelete()
 		MessageBox(L"No connection to the database at the moment!");
 	}
 	else {
-		if (m_list_value!= "")
+		if (SELECTED!= -1)
 		{
 			if (MessageBoxA(NULL, "Do you want to delete this item?", "Warning", MB_YESNO) == IDYES) {
 				//CDatabase database;
@@ -458,7 +508,7 @@ void CPhoneAppDlg::OnBnClickedDelete()
 				TRY{
 					//database.Open(NULL,false,false,CONN_STRING);
 
-					SqlString.Format(L"DELETE FROM Employees WHERE id like %s",GetFirstWord(m_list_value));
+					SqlString.Format(L"DELETE FROM Employees WHERE id like %d",m_list_names.GetItemData(SELECTED));
 
 					database.ExecuteSQL(SqlString);
 					//database.Close();
@@ -468,7 +518,12 @@ void CPhoneAppDlg::OnBnClickedDelete()
 				END_CATCH;
 				UpdateData(FALSE);
 				FetchData();
+				SELECTED = -1;
 			}
+		}
+		else
+		{
+			AfxMessageBox(L"No person selected!");
 		}
 	}
 	
@@ -482,7 +537,7 @@ void CPhoneAppDlg::OnBnClickedUpdate()
 		MessageBox(L"No connection to the database at the moment!");
 	}
 	else {
-		if (m_list_value != "") {
+		if (SELECTED !=-1) {
 			UpdateData();
 			//CDatabase database;
 			CString SqlString;
@@ -495,8 +550,8 @@ void CPhoneAppDlg::OnBnClickedUpdate()
 
 				CRecordset recset(&database);
 
-				SqlString.Format(L"SELECT ID, FirstName, LastName, Telephone FROM Employees WHERE id like %s",GetFirstWord(m_list_value));
-
+				SqlString.Format(L"SELECT ID, FirstName, LastName, Telephone FROM Employees WHERE id like %d",m_list_names.GetItemData(SELECTED));
+				MessageBox(SqlString);
 				recset.Open(CRecordset::forwardOnly,SqlString,CRecordset::readOnly);
 
 				recset.GetFieldValue(L"ID",strID);
@@ -515,6 +570,7 @@ void CPhoneAppDlg::OnBnClickedUpdate()
 					SqlString.Format(L"UPDATE Employees set Firstname='%s', LastName = '%s', Telephone = '%s' WHERE id = %s",m_edit_fn,m_edit_ln,m_edit_phone,m_edit_id);
 					database.ExecuteSQL(SqlString);
 					MessageBox(L"Data Updated Successfully!");
+					SELECTED = -1;
 					UpdateData(false);
 				}
 				ResetListControls();
@@ -524,6 +580,10 @@ void CPhoneAppDlg::OnBnClickedUpdate()
 				AfxMessageBox(L"Database error: " + e->m_strError);
 			}
 			END_CATCH;
+		}
+		else
+		{
+			AfxMessageBox(L"No person selected!");
 		}
 	}
 	
