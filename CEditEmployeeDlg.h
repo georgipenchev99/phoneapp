@@ -45,4 +45,5 @@ public:
 	afx_msg void OnEnKillfocusEditLn();
 	afx_msg void OnBnClickedButton2();
 	vector<CString> toReplace;
+	vector<CString> toInsert;
 };

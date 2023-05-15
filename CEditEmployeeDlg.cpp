@@ -152,6 +152,7 @@ void CEditEmployeeDlg::OnBnClickedButton2()
 {
 	UpdateData();
 	empl.at(0).Push_Phone(m_edit_phone);
+	toInsert.push_back(m_edit_phone);
 	UpdateData(false);
 	return;
 }

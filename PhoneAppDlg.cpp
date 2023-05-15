@@ -433,13 +433,36 @@ void CPhoneAppDlg::OnBnClickedUpdate()
 				UpdateData();
 				employees = dlg.empl;
 				vector<CString> old_phones = dlg.toReplace;
+				vector<CString> new_phones = dlg.toInsert;
 
-				for (size_t i = 0; i < old_phones.size(); i++)
+				//bugged
+				/*if (old_phones.size()>0)
 				{
-					process.UpdateQuery(employees.at(0).GetID(), employees.at(0).GetFirstName(), employees.at(0).GetLastName(), employees.at(0).GetPhones(), old_phones.at(i));
+					for (size_t i = 0; i < old_phones.size(); i++)
+					{
+						process.UpdateQuery(employees.at(0).GetID(), employees.at(0).GetFirstName(), employees.at(0).GetLastName(), employees.at(0).GetPhones(), old_phones.at(i));
+					}
+				}
+				else {
+					process.UpdateQuery(employees.at(0).GetID(), employees.at(0).GetFirstName(), employees.at(0).GetLastName(), employees.at(0).GetPhones());
 				}
 				
-				
+				if (new_phones.size() > 0)
+				{
+					for (size_t i = 0; i < new_phones.size(); i++)
+					{
+						process.InsertPhoneQuery(employees.at(i).GetID(), new_phones.at(i));
+
+					}
+				}*/
+
+
+
+			//temporary solution
+				process.DeletePhonesQuery(employees.at(0).GetID());
+				process.UpdateQuery(employees.at(0).GetID(), employees.at(0).GetFirstName(), employees.at(0).GetLastName(), employees.at(0).GetPhones());
+			//temporary solution
+
 				UpdateData(false);
 			}
 			ResetListControls();

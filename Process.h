@@ -82,6 +82,22 @@ public:
 		END_CATCH;
 	}
 
+	void InsertPhoneQuery(CString employeeid, CString phone) {
+		CString SqlString;
+		CString strID, strFirstName, strLastName, strPhone;
+
+		int iRec = 0;
+
+		TRY{
+			SqlString.Format(L"INSERT INTO telephones (employee_id,phone) VALUES ('%s', '%s')", employeeid, phone);
+			database.ExecuteSQL(SqlString);
+
+		}CATCH(CDBException, e) {
+			AfxMessageBox(L"Database error: " + e->m_strError);
+		}
+		END_CATCH;
+	}
+
 	vector<Employee> PartialMatch(CString searched_value) {
 		CString SqlString;
 		CString strID, strName, strLastName, strPhone;
@@ -255,7 +271,19 @@ public:
 		END_CATCH;
 	}
 
-	vector<Employee> UpdateQuery(CString id, CString fn, CString ln, vector<CString> phones, CString phone_id) {
+	void DeletePhonesQuery(CString id) {
+		CString SqlString;
+
+		TRY{
+			SqlString.Format(L"DELETE FROM telephones WHERE employee_id like %s",id);
+			database.ExecuteSQL(SqlString);
+		}CATCH(CDBException, e) {
+			AfxMessageBox(L"Database error: " + e->m_strError);
+		}
+		END_CATCH;
+	}
+
+	vector<Employee> UpdateQuery(CString id, CString fn, CString ln, vector<CString> phones, CString phone_id = L"") {
 		CString SqlString;
 		CString strID, strName, strLastName, strPhone;
 
@@ -267,13 +295,30 @@ public:
 
 		TRY{
 			CRecordset recset(&database);
+
+			//bugged
+			/*SqlString.Format(L"UPDATE Employees set Firstname='%s', LastName = '%s' WHERE id = %s", fn, ln, id);
+			database.ExecuteSQL(SqlString);
+			for (size_t i = 0; i < phones.size(); i++)
+			{
+				if (phone_id.GetLength() != 0) {
+					SqlString.Format(L"UPDATE telephones set phone='%s' WHERE employee_id = %s and phone='%s'", phones.at(i), id, phone_id);
+
+				}
+				database.ExecuteSQL(SqlString);
+			}*/
+
+		//temporary solution
 			SqlString.Format(L"UPDATE Employees set Firstname='%s', LastName = '%s' WHERE id = %s", fn, ln, id);
 			database.ExecuteSQL(SqlString);
 			for (size_t i = 0; i < phones.size(); i++)
 			{
-				SqlString.Format(L"UPDATE telephones set phone='%s' WHERE employee_id = %s and phone='%s'", phones.at(i), id, phone_id);
+				SqlString.Format(L"INSERT INTO telephones (employee_id,phone) VALUES ('%s', '%s')", id, phones.at(i));
 				database.ExecuteSQL(SqlString);
 			}
+			
+
+		//temporary solution
 			
 			
 		}CATCH(CDBException, e) {
