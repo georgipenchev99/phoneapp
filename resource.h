@@ -21,11 +21,13 @@
 #define IDC_PARTIAL_MATCH               1010
 #define IDC_EXACT_MATCH                 1011
 #define IDC_EDIT_ID                     1012
-#define IDC_FN2                         1012
 #define IDC_ID                          1012
 #define IDC_EDIT_FN                     1013
 #define IDC_EDIT_LN                     1014
 #define IDC_EDIT_PHONE                  1015
+#define IDC_LIST1                       1016
+#define IDC_BUTTON1                     1017
+#define IDC_BUTTON2                     1018
 
 // Next default values for new objects
 // 
@@ -33,7 +35,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        132
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1013
+#define _APS_NEXT_CONTROL_VALUE         1019
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

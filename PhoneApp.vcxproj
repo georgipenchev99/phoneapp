@@ -189,6 +189,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="PhoneApp.h" />
     <ClInclude Include="PhoneAppDlg.h" />
+    <ClInclude Include="Process.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -203,6 +204,7 @@
     </ClCompile>
     <ClCompile Include="PhoneApp.cpp" />
     <ClCompile Include="PhoneAppDlg.cpp" />
+    <ClCompile Include="Process.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PhoneApp.rc" />

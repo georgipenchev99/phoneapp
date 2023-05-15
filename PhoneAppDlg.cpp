@@ -11,25 +11,22 @@
 #include "afxdb.h"
 #include "CEditEmployeeDlg.h"
 #include "Employee.h"
+#include "Process.h"
 #include <vector>
 
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-//Uid=User-PC\\user;Pwd=;
-//define connection string with windows authentication
-#define CONN_STRING L"Driver={ODBC Driver 17 for SQL Server};Server={(localdb)\\MSSQLLocalDB}; Database=work; Trusted_Connection=yes;"
-//global database var with open connection
-CDatabase database;
-//if this is false, there will be no fetching data
-bool conn_success = database.Open(NULL,false,false,CONN_STRING);
 
 //global var for selected item in listbox
 static int SELECTED = -1;
 
+//global var for connection to database and database operations
+Process process;
+
 //global array of employees
-std::vector<Employee> employees;
+vector<Employee> employees;
 
 class CAboutDlg : public CDialogEx
 {
@@ -111,7 +108,7 @@ END_MESSAGE_MAP()
 BOOL CPhoneAppDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
-	FetchData();
+	
 	// Add "About..." menu item to system menu.
 
 	// IDM_ABOUTBOX must be in the system command range.
@@ -138,6 +135,7 @@ BOOL CPhoneAppDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
+	FetchData();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -239,104 +237,38 @@ void CPhoneAppDlg::ResetListControls() {
 }
 
 void CPhoneAppDlg::FetchData() {
-	if (!conn_success)
+	if (!process.Connection_Success())
 	{
 		MessageBox(L"No connection to the database at the moment!");
 	}
 	else
 	{
-		//CDatabase database;
-		CString SqlString;
-		
-		CString strID, strName, strLastName, strPhone;
-		
-		int iRec = 0;
-
-		TRY{
-			//database.Open(NULL,false,false,CONN_STRING);
-
-			// Allocate the recordset
-			CRecordset recset(&database);
-
-		// Build the SQL statement
-		SqlString = "SELECT id, FirstName, LastName FROM Employees";
-
-		// Execute the query
-		recset.Open(CRecordset::forwardOnly,SqlString,CRecordset::readOnly);
-		// Reset List control if there is any data
 		ResetListControls();
+		employees.clear();
+		employees = process.FetchEmployees();
 
+		for (size_t i = 0; i < employees.size(); i++)
+		{
+			int index = m_list_names.AddString(employees.at(i).GetFirstName() + " " + employees.at(i).GetLastName());
+			DWORD d = _wtol(employees.at(i).GetID());
 
-		// Loop through each record
-		while (!recset.IsEOF()) {
-			// Copy each column into a variable
-			recset.GetFieldValue(L"id",strID);
-			recset.GetFieldValue(L"FirstName",strName);
-			recset.GetFieldValue(L"LastName", strLastName);
-			//recset.GetFieldValue(L"phone", strPhone);
-
-			// Insert values into the list control
-			/*iRec = m_list_control.InsertItem(0,strID,0);
-			m_list_control.SetItemText(0,1,strName);
-			m_list_control.SetItemText(0, 2, strLastName);
-			m_list_control.SetItemText(0, 3, strPhone);*/
-
-			//old
-			//int index = m_list_names.AddString(strID + " " + strName + " " + strLastName);
-			int index = m_list_names.AddString(strName + " " + strLastName);
-			DWORD d = _wtol(strID);
-			
 			m_list_names.SetItemData(index, d);
-
-			/*CListBox* pListBox = (CListBox*)GetDlgItem(IDC_LIST_NAMES);
-			CString toAdd = strID + " " + strName + " " + strLastName;
-			int i = pListBox->AddString(toAdd);
-			pListBox->SetItemData(i, toAdd);
-			
-			DWORD_PTR d = pListBox->GetItemData(i);
-			*/
-			/*CString s;
-			s.Format(L"%d  %d",index, d);
-			MessageBox(s);*/
-			// goto next record
-			recset.MoveNext();
-		 }
-		// Close the database
-		//database.Close();
-		}CATCH(CDBException, e) {
-			// If a database exception occured, show error msg
-			AfxMessageBox(L"Database error: " + e->m_strError);
 		}
-		END_CATCH;
+		
 	}
 	
 }
 
 void CPhoneAppDlg::OnBnClickedInsert()
 {
-	if (!conn_success)
+	if (!process.Connection_Success())
 	{
 		MessageBox(L"No connection to the database at the moment!");
 	}
 	else {
 		UpdateData();
 
-		CString SqlString;
-		CString strID, strFirstName, strLastName, strPhone;
-
-		int iRec = 0;
-
-		TRY{
-
-			SqlString.Format(L"INSERT INTO employees (id,FirstName,LastName) VALUES ('%s', '%s','%s')",m_tb_id,m_tb_fn,m_tb_ln);
-			database.ExecuteSQL(SqlString);
-			SqlString.Format(L"INSERT INTO telephones (employee_id,phone) VALUES ('%s', '%s')", m_tb_id, m_tb_phone);
-			database.ExecuteSQL(SqlString);
-
-		}CATCH(CDBException, e) {
-			AfxMessageBox(L"Database error: " + e->m_strError);
-		}
-		END_CATCH;
+		process.InsertQuery(m_tb_id, m_tb_fn, m_tb_ln, m_tb_phone);
 
 		m_tb_id = "";
 		m_tb_fn = "";
@@ -352,7 +284,7 @@ void CPhoneAppDlg::OnBnClickedInsert()
 
 void CPhoneAppDlg::OnBnClickedRetrieve()
 {
-	if (!conn_success)
+	if (!process.Connection_Success())
 	{
 		MessageBox(L"No connection to the database at the moment!");
 	}
@@ -363,55 +295,32 @@ void CPhoneAppDlg::OnBnClickedRetrieve()
 
 void CPhoneAppDlg::OnBnClickedPartialMatch()
 {
-	if (!conn_success)
+	if (!process.Connection_Success())
 	{
 		MessageBox(L"No connection to the database at the moment!");
 	}
 	else {
 		UpdateData();
+		ResetListControls();
+		employees.clear();
+		employees = process.PartialMatch(m_search);
 
-		CString SqlString;
-		CString strID, strName, strLastName, strPhone;
-
-		int iRec = 0;
-
-		TRY{
-
-			CRecordset recset(&database);
-
-			SqlString = L"SELECT e.ID, FirstName, LastName, phone FROM Employees e left join telephones t on e.id=t.employee_id WHERE FirstName like '%" + m_search + L"%' or LastName like '%" + m_search + L"%' or phone like '%" + m_search + L"%'";
-
-			recset.Open(CRecordset::forwardOnly,SqlString,CRecordset::readOnly);
-
-			ResetListControls();
-			if (recset.IsEOF())
+		for (size_t i = 0; i < employees.size(); i++)
+		{
+			for (size_t j = 0; j < employees.at(i).GetPhones().size(); j++)
 			{
-				MessageBox(L"No data found!");
+				int iRec = m_list_control.InsertItem(0, employees.at(i).GetID(), 0);
+				m_list_control.SetItemText(0, 1, employees.at(i).GetFirstName());
+				m_list_control.SetItemText(0, 2, employees.at(i).GetLastName());
+				m_list_control.SetItemText(0, 3, employees.at(i).GetPhones().at(j));//this may be deleted
 			}
-			else {
-				while (!recset.IsEOF()) {
+			
 
-					recset.GetFieldValue(L"ID", strID);
-					recset.GetFieldValue(L"FirstName", strName);
-					recset.GetFieldValue(L"LastName", strLastName);
-					recset.GetFieldValue(L"phone", strPhone);
+			int index = m_list_names.AddString(employees.at(i).GetFirstName() + " " + employees.at(i).GetLastName());
+			DWORD d = _wtol(employees.at(i).GetID());
 
-					iRec = m_list_control.InsertItem(0, strID, 0);
-					m_list_control.SetItemText(0, 1, strName);
-					m_list_control.SetItemText(0, 2, strLastName);
-					m_list_control.SetItemText(0, 3, strPhone);
-
-					int index = m_list_names.AddString(strName + " " + strLastName);
-					DWORD d = _wtol(strID);
-
-					m_list_names.SetItemData(index, d);
-					recset.MoveNext();
-				}
-			}
-		}CATCH(CDBException, e) {
-			AfxMessageBox(L"Database error: " + e->m_strError);
+			m_list_names.SetItemData(index, d);
 		}
-		END_CATCH;
 	}
 	
 }
@@ -419,54 +328,33 @@ void CPhoneAppDlg::OnBnClickedPartialMatch()
 
 void CPhoneAppDlg::OnBnClickedExactMatch()
 {
-	if (!conn_success)
+	if (!process.Connection_Success())
 	{
 		MessageBox(L"No connection to the database at the moment!");
 	}
 	else {
 		UpdateData();
-		CString SqlString;
-		CString strID, strName, strLastName, strPhone;
+		ResetListControls();
+		employees.clear();
+		employees = process.ExactMatch(m_search);
 
-		int iRec = 0;
-
-		TRY{
-
-			CRecordset recset(&database);
-
-			SqlString.Format(L"SELECT e.ID, FirstName, LastName, phone FROM Employees e left join telephones t on e.id= t.employee_id WHERE FirstName like '%s' or LastName like '%s' or phone like '%s'",m_search, m_search, m_search);
-
-			recset.Open(CRecordset::forwardOnly,SqlString,CRecordset::readOnly);
-
-			ResetListControls();
-			if (recset.IsEOF())
+		for (size_t i = 0; i < employees.size(); i++)
+		{
+			for (size_t j = 0; j < employees.at(i).GetPhones().size(); j++)
 			{
-				MessageBox(L"No data found!");
+				int iRec = m_list_control.InsertItem(0, employees.at(i).GetID(), 0);
+				m_list_control.SetItemText(0, 1, employees.at(i).GetFirstName());
+				m_list_control.SetItemText(0, 2, employees.at(i).GetLastName());
+				m_list_control.SetItemText(0, 3, employees.at(i).GetPhones().at(j));//this may be deleted
 			}
-			else {
-				while (!recset.IsEOF()) {
 
-					recset.GetFieldValue(L"ID", strID);
-					recset.GetFieldValue(L"FirstName", strName);
-					recset.GetFieldValue(L"LastName", strLastName);
-					recset.GetFieldValue(L"phone", strPhone);
+			int index = m_list_names.AddString(employees.at(i).GetFirstName() + " " + employees.at(i).GetLastName());
+			DWORD d = _wtol(employees.at(i).GetID());
 
-					iRec = m_list_control.InsertItem(0, strID, 0);
-					m_list_control.SetItemText(0, 1, strName);
-					m_list_control.SetItemText(0, 2, strLastName);
-					m_list_control.SetItemText(0, 3, strPhone);
-
-					int index = m_list_names.AddString(strName + " " + strLastName);
-					DWORD d = _wtol(strID);
-
-					m_list_names.SetItemData(index, d);
-					recset.MoveNext();
-				}
-			}
-		}CATCH(CDBException, e) {
-			AfxMessageBox(L"Database error: " + e->m_strError);
+			m_list_names.SetItemData(index, d);
 		}
-		END_CATCH;
+
+		
 	}
 }
 
@@ -474,8 +362,7 @@ void CPhoneAppDlg::OnBnClickedExactMatch()
 void CPhoneAppDlg::OnLbnSelchangeListNames()
 {
 	UpdateData();
-	CString SqlString;
-	CString strID, strName, strLastName, strPhone;
+	employees.clear();
 
 	SELECTED = m_list_names.GetCurSel();
 	if (SELECTED!=-1)
@@ -483,24 +370,18 @@ void CPhoneAppDlg::OnLbnSelchangeListNames()
 		DWORD d = m_list_names.GetItemData(SELECTED);
 		m_list_control.DeleteAllItems();
 
-		CRecordset recset(&database);
+		employees = process.SearchWhereByID(d);
 
-		SqlString.Format(L"SELECT e.ID, FirstName, LastName, phone FROM Employees e left join telephones t on e.id= t.employee_id WHERE e.id like '%d'", d);
-
-		recset.Open(CRecordset::forwardOnly, SqlString, CRecordset::readOnly);
-		while (!recset.IsEOF()) {
-
-			recset.GetFieldValue(L"ID", strID);
-			recset.GetFieldValue(L"FirstName", strName);
-			recset.GetFieldValue(L"LastName", strLastName);
-			recset.GetFieldValue(L"phone", strPhone);
-
-			m_list_control.InsertItem(0, strID, 0);
-			m_list_control.SetItemText(0, 1, strName);
-			m_list_control.SetItemText(0, 2, strLastName);
-			m_list_control.SetItemText(0, 3, strPhone);
-
-			recset.MoveNext();
+		m_list_control.DeleteAllItems();
+		for (size_t i = 0; i < employees.size(); i++)
+		{
+			for (size_t j = 0; j < employees.at(i).GetPhones().size(); j++)
+			{
+				int iRec = m_list_control.InsertItem(0, employees.at(i).GetID(), 0);
+				m_list_control.SetItemText(0, 1, employees.at(i).GetFirstName());
+				m_list_control.SetItemText(0, 2, employees.at(i).GetLastName());
+				m_list_control.SetItemText(0, 3, employees.at(i).GetPhones().at(j));//this may be deleted
+			}
 		}
 	}
 
@@ -510,7 +391,7 @@ void CPhoneAppDlg::OnLbnSelchangeListNames()
 
 void CPhoneAppDlg::OnBnClickedDelete()
 {
-	if (!conn_success)
+	if (!process.Connection_Success())
 	{
 		MessageBox(L"No connection to the database at the moment!");
 	}
@@ -518,17 +399,9 @@ void CPhoneAppDlg::OnBnClickedDelete()
 		if (SELECTED!= -1)
 		{
 			if (MessageBoxA(NULL, "Do you want to delete this item?", "Warning", MB_YESNO) == IDYES) {
-				CString SqlString;
+				
+				process.DeleteQuery(m_list_names.GetItemData(SELECTED));
 
-				TRY{
-					SqlString.Format(L"DELETE FROM telephones WHERE employee_id like %d",m_list_names.GetItemData(SELECTED));
-					database.ExecuteSQL(SqlString);
-					SqlString.Format(L"DELETE FROM Employees WHERE id like %d",m_list_names.GetItemData(SELECTED));
-					database.ExecuteSQL(SqlString);
-				}CATCH(CDBException, e) {
-					AfxMessageBox(L"Database error: " + e->m_strError);
-				}
-				END_CATCH;
 				UpdateData(FALSE);
 				FetchData();
 				SELECTED = -1;
@@ -545,51 +418,32 @@ void CPhoneAppDlg::OnBnClickedDelete()
 
 void CPhoneAppDlg::OnBnClickedUpdate()
 {
-	if (!conn_success)
+	employees.clear();
+	if (!process.Connection_Success())
 	{
 		MessageBox(L"No connection to the database at the moment!");
 	}
 	else {
 		if (SELECTED !=-1) {
 			UpdateData();
-			CString SqlString;
-			CString strID, strName, strLastName, strPhone;
+			employees = process.SearchWhereByID(m_list_names.GetItemData(SELECTED));
 
-			int iRec = 0;
+			CEditEmployeeDlg dlg(employees);
+			if (dlg.DoModal() == IDOK) {
+				UpdateData();
+				employees = dlg.empl;
+				vector<CString> old_phones = dlg.toReplace;
 
-			TRY{
-				CRecordset recset(&database);
-
-				SqlString.Format(L"SELECT e.ID, FirstName, LastName, phone FROM Employees e join telephones t on e.id=t.employee_id WHERE e.id like %d",m_list_names.GetItemData(SELECTED));
-				MessageBox(SqlString);
-				recset.Open(CRecordset::forwardOnly,SqlString,CRecordset::readOnly);
-
-				recset.GetFieldValue(L"ID",strID);
-				recset.GetFieldValue(L"FirstName",strName);
-				recset.GetFieldValue(L"LastName", strLastName);
-				recset.GetFieldValue(L"phone", strPhone);
-
-				CEditEmployeeDlg dlg(strID, strName,strLastName,strPhone);
-				if (dlg.DoModal() == IDOK) {
-					UpdateData();
-					m_edit_fn = dlg.m_id_fn;
-					m_edit_ln = dlg.m_edit_ln;
-					m_edit_phone = dlg.m_edit_phone;
-					m_edit_id = dlg.m_edit_id;
-
-					SqlString.Format(L"UPDATE Employees set Firstname='%s', LastName = '%s', Telephone = '%s' WHERE Employees.id = %s",m_edit_fn,m_edit_ln,m_edit_phone,m_edit_id);
-					database.ExecuteSQL(SqlString);
-					MessageBox(L"Data Updated Successfully!");
-					SELECTED = -1;
-					UpdateData(false);
+				for (size_t i = 0; i < old_phones.size(); i++)
+				{
+					process.UpdateQuery(employees.at(0).GetID(), employees.at(0).GetFirstName(), employees.at(0).GetLastName(), employees.at(0).GetPhones(), old_phones.at(i));
 				}
-				ResetListControls();
-				FetchData();
-
-			}CATCH(CDBException, e) {
-				AfxMessageBox(L"Database error: " + e->m_strError);
+				
+				
+				UpdateData(false);
 			}
-			END_CATCH;
+			ResetListControls();
+			FetchData();
 		}
 		else
 		{
@@ -609,5 +463,5 @@ void CPhoneAppDlg::OnBnClickedCancel()
 }
 
 void CPhoneAppDlg::CloseConn() {
-	database.Close();
+	process.~Process();
 }
